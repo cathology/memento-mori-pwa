@@ -1,0 +1,86 @@
+{
+  "name": "Memento Mori",
+  "short_name": "Memento Mori",
+  "description": "A minimalist life countdown timer and week calendar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-countdown.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-calendar.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": ["lifestyle", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Countdown",
+      "short_name": "Countdown",
+      "description": "View life countdown timer",
+      "url": "/",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+```
+
+### Complete Directory Structure
+
+Now your complete file structure should look like this:
+```
+memento-mori-pwa/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          ← GitHub Actions deployment
+├── public/
+│   ├── favicon.ico             ← Need to create
+│   ├── pwa-192x192.png         ← Need to create
+│   ├── pwa-512x512.png         ← Need to create
+│   ├── apple-touch-icon.png    ← Need to create
+│   └── manifest.webmanifest    ← PWA manifest
+├── src/
+│   ├── test/
+│   │   └── setup.ts
+│   ├── utils/
+│   │   └── dateCalculations.test.ts
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+├── .gitignore
+├── index.html                   ← HTML entry point
+├── package.json
+├── postcss.config.js
+├── tailwind.config.js
+├── tsconfig.json
+├── tsconfig.node.json
+├── vite.config.ts
+├── vitest.config.ts
+├── README.md
+├── DESIGN.md
+├── ANDROID_WIDGET.md
+├── CONTRIBUTING.md
+└── LICENSE
