@@ -336,7 +336,7 @@ const App: React.FC = () => {
               target="_blank"
               rel="noopener noreferrer"
               className="block text-center text-blue-400 hover:underline text-sm py-2"
-            >
+            <a>
               Calculate my lifespan (external site)
             </a>
             <button
