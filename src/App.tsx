@@ -170,6 +170,53 @@ const App: React.FC = () => {
       }
     };
 
+
+
+  // Add this useEffect after your other useEffects
+  useEffect(() => {
+    const calculateColumns = () => {
+      if (typeof window === 'undefined') return 52;
+      
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const weeks = getWeeksData();
+      
+      // Calculate how many columns can fit
+      let cols;
+      if (vw < 640) {
+        // Mobile: 15-25 columns
+        cols = Math.max(15, Math.min(25, Math.floor(vw / 20)));
+      } else if (vw < 1024) {
+        // Tablet: 30-40 columns
+        cols = Math.max(30, Math.min(40, Math.floor(vw / 22)));
+      } else {
+        // Desktop: up to 52 columns
+        cols = Math.min(52, Math.floor(vw / 24));
+      }
+      
+      // Make sure we don't have too many rows
+      const rows = Math.ceil(weeks.length / cols);
+      const availableHeight = vh * 0.7; // Use 70% of viewport height
+      const cellSize = availableHeight / rows;
+      
+      // If cells would be too small, reduce columns
+      if (cellSize < 6) {
+        cols = Math.ceil(weeks.length / Math.floor(availableHeight / 6));
+      }
+    
+    setCalendarCols(cols);
+  };
+  
+  calculateColumns();
+  
+  // Recalculate on resize
+  window.addEventListener('resize', calculateColumns);
+  return () => window.removeEventListener('resize', calculateColumns);
+}, [birthDate, lifespan]);
+
+// Then use calendarCols instead of cols:
+const weeks = getWeeksData();
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
@@ -380,6 +427,7 @@ if (!isSetup) {
 
   const weeks = getWeeksData();
   const cols = Math.min(52, Math.floor((typeof window !== 'undefined' ? window.innerWidth : 1200) / 14));
+  const [calendarCols, setCalendarCols] = useState(52);
 
   return (
     <div 
@@ -625,14 +673,17 @@ if (!isSetup) {
               </div>
             )}
           </div>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center p-2">
+        
+                ) : (
+          <div className="w-full flex items-center justify-center p-4 overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
             <div
-              className="grid gap-1"
+              className="grid gap-0.5 md:gap-1"
               style={{
-                gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                gridTemplateColumns: `repeat(${calendarCols}, minmax(0, 1fr))`,
+                width: '100%',
                 maxWidth: '100%',
-                maxHeight: '80vh'
+                height: 'fit-content',
+                maxHeight: '100%'
               }}
               role="img"
               aria-label={`Life calendar showing ${weeks.filter(w => w.isPast).length} weeks lived out of ${weeks.length} total weeks`}
@@ -642,8 +693,12 @@ if (!isSetup) {
                   key={i}
                   className="rounded-full"
                   style={{
-                    width: 'clamp(4px, 1.2vw, 14px)',
-                    height: 'clamp(4px, 1.2vw, 14px)',
+                    aspectRatio: '1',
+                    width: '100%',
+                    maxWidth: '16px',
+                    maxHeight: '16px',
+                    minWidth: '3px',
+                    minHeight: '3px',
                     backgroundColor: week.isPast ? accentColor : 'transparent',
                     border: week.isPast ? 'none' : `1px solid ${accentColor}`
                   }}
