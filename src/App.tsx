@@ -328,55 +328,55 @@ const handleShareNative = async () => {
     localStorage.setItem(`memento.${key}`, value.toString());
   };
 
-  if (!isSetup) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full space-y-6">
-          <h1 className="text-4xl font-bold text-center mb-8">Memento Mori</h1>
-          <div className="space-y-4">
-            <div>
-              <label className="block mb-2 text-sm font-medium">Birth Date</label>
-              <input
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-600"
-                aria-label="Birth date"
-              />
-            </div>
-            <div>
-              <label className="block mb-2 text-sm font-medium">Expected Lifespan (years)</label>
-              <select
-                value={lifespan}
-                onChange={(e) => setLifespan(parseInt(e.target.value))}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-600"
-                aria-label="Expected lifespan"
-              >
-                {Array.from({ length: 101 }, (_, i) => i + 20).map(y => (
-                  <option key={y} value={y}>{y} years</option>
-                ))}
-              </select>
-            </div>
-            
-              href="https://media.nmfn.com/tnetwork/lifespan/index.html#0"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-center text-blue-400 hover:underline text-sm py-2"
-            <a>
-              Calculate my lifespan (external site)
-            </a>
-            <button
-              onClick={handleSetup}
-              disabled={!birthDate}
-              className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-3 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-black"
-            >
-              Begin
-            </button>
+if (!isSetup) {
+  return (
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      <div className="max-w-md w-full space-y-6">
+        <h1 className="text-4xl font-bold text-center mb-8">Memento Mori</h1>
+        <div className="space-y-4">
+          <div>
+            <label className="block mb-2 text-sm font-medium">Birth Date</label>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-600"
+              aria-label="Birth date"
+            />
           </div>
+          <div>
+            <label className="block mb-2 text-sm font-medium">Expected Lifespan (years)</label>
+            <select
+              value={lifespan}
+              onChange={(e) => setLifespan(parseInt(e.target.value))}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-600"
+              aria-label="Expected lifespan"
+            >
+              {Array.from({ length: 101 }, (_, i) => i + 20).map(y => (
+                <option key={y} value={y}>{y} years</option>
+              ))}
+            </select>
+          </div>
+          
+            href="https://media.nmfn.com/tnetwork/lifespan/index.html#0"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-center text-blue-400 hover:underline text-sm py-2"
+          >
+            Calculate my lifespan (external site)
+          </a>
+          <button
+            onClick={handleSetup}
+            disabled={!birthDate}
+            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-3 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-black"
+          >
+            Begin
+          </button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   const weeks = getWeeksData();
   const cols = Math.min(52, Math.floor((typeof window !== 'undefined' ? window.innerWidth : 1200) / 14));
