@@ -459,7 +459,7 @@ const App: React.FC = () => {
               <Download size={20} />
             </button>
             
-            {navigator.share && (
+            {navigator.share !== undefined && (
               <button
                 onClick={handleShareNative}
                 className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
