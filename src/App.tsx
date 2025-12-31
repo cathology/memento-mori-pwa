@@ -207,25 +207,28 @@ const App: React.FC = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const weeks = getWeeksData();
+      if (weeks.length === 0) return;
       
-      let cols;
-      if (vw < 640) {
-        cols = Math.max(15, Math.min(25, Math.floor(vw / 20)));
-      } else if (vw < 1024) {
-        cols = Math.max(30, Math.min(40, Math.floor(vw / 22)));
-      } else {
-        cols = Math.min(52, Math.floor(vw / 24));
-      }
+      // Account for UI elements (buttons, quotes)
+      const availableHeight = vh - 180; // Leave space for buttons and quotes
+      const availableWidth = vw - 32; // Account for padding
       
-      const rows = Math.ceil(weeks.length / cols);
-      const availableHeight = vh * 0.7;
-      const cellSize = availableHeight / rows;
-      
-      if (cellSize < 6) {
-        cols = Math.ceil(weeks.length / Math.floor(availableHeight / 6));
+      // Try different column counts to find best fit
+      let bestCols = 52;
+      for (let cols = 15; cols <= 52; cols++) {
+        const rows = Math.ceil(weeks.length / cols);
+        const cellWidth = availableWidth / cols;
+        const cellHeight = availableHeight / rows;
+        const cellSize = Math.min(cellWidth, cellHeight);
+        
+        // If cells would be at least 4px and everything fits
+        if (cellSize >= 4 && rows * cellSize <= availableHeight) {
+          bestCols = cols;
+          break;
+        }
       }
     
-      setCalendarCols(cols);
+      setCalendarCols(bestCols);
     };
   
     calculateColumns();
@@ -459,7 +462,7 @@ const App: React.FC = () => {
               <Download size={20} />
             </button>
             
-            {navigator.share !== undefined && (
+            {navigator.share && (
               <button
                 onClick={handleShareNative}
                 className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
@@ -668,15 +671,14 @@ const App: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="w-full flex items-center justify-center p-4 overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
+          <div className="w-full h-full flex items-center justify-center p-4">
             <div
-              className="grid gap-0.5 md:gap-1"
+              className="grid gap-0.5"
               style={{
-                gridTemplateColumns: `repeat(${calendarCols}, minmax(0, 1fr))`,
-                width: '100%',
+                gridTemplateColumns: `repeat(${calendarCols}, 1fr)`,
+                width: 'fit-content',
                 maxWidth: '100%',
-                height: 'fit-content',
-                maxHeight: '100%'
+                maxHeight: 'calc(100vh - 180px)'
               }}
               role="img"
               aria-label={`Life calendar showing ${weeks.filter(w => w.isPast).length} weeks lived out of ${weeks.length} total weeks`}
@@ -686,12 +688,9 @@ const App: React.FC = () => {
                   key={i}
                   className="rounded-full"
                   style={{
-                    aspectRatio: '1',
-                    width: '100%',
-                    maxWidth: '16px',
-                    maxHeight: '16px',
-                    minWidth: '3px',
-                    minHeight: '3px',
+                    aspectRatio: '1/1',
+                    width: 'clamp(4px, 1.5vw, 12px)',
+                    height: 'clamp(4px, 1.5vw, 12px)',
                     backgroundColor: week.isPast ? accentColor : 'transparent',
                     border: week.isPast ? 'none' : `1px solid ${accentColor}`
                   }}
