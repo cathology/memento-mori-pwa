@@ -383,7 +383,7 @@ const App: React.FC = () => {
 
   const months = getMonthsData();
 
-  return (
+return (
     <div 
       ref={containerRef} 
       className="min-h-screen bg-black text-white overflow-hidden relative"
