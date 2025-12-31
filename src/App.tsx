@@ -25,10 +25,10 @@ const addYears = (date: Date, years: number): Date => {
   return result;
 };
 
-const differenceInDays = (date1: Date | number, date2: Date | number): number => {
-  const d1 = typeof date1 === 'number' ? date1 : date1.getTime();
-  const d2 = typeof date2 === 'number' ? date2 : date2.getTime();
-  return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
+const differenceInMonths = (date1: Date | number, date2: Date | number): number => {
+  const d1 = typeof date1 === 'number' ? new Date(date1) : date1;
+  const d2 = typeof date2 === 'number' ? new Date(date2) : date2;
+  return (d1.getFullYear() - d2.getFullYear()) * 12 + (d1.getMonth() - d2.getMonth());
 };
 
 const App: React.FC = () => {
@@ -45,12 +45,11 @@ const App: React.FC = () => {
   const [selectedQuotes, setSelectedQuotes] = useState(new Set(quotes.map((_, i) => i)));
   const [showQuotes, setShowQuotes] = useState(true);
   const [showPercent, setShowPercent] = useState(true);
-  const [showSeconds, setShowSeconds] = useState(true);
   const [tickSound, setTickSound] = useState(false);
   const [accentColor, setAccentColor] = useState('#ef4444');
   const [capturing, setCapturing] = useState(false);
   const [newQuote, setNewQuote] = useState('');
-  const [calendarCols, setCalendarCols] = useState(52);
+  const [calendarCols, setCalendarCols] = useState(12);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -63,7 +62,6 @@ const App: React.FC = () => {
     const savedAccent = localStorage.getItem('memento.accentColor');
     const savedShowQuotes = localStorage.getItem('memento.showQuotes');
     const savedShowPercent = localStorage.getItem('memento.showPercent');
-    const savedShowSeconds = localStorage.getItem('memento.showSeconds');
     
     if (saved && savedLifespan) {
       setBirthDate(saved);
@@ -93,9 +91,6 @@ const App: React.FC = () => {
     if (savedShowPercent !== null) {
       setShowPercent(savedShowPercent === 'true');
     }
-    if (savedShowSeconds !== null) {
-      setShowSeconds(savedShowSeconds === 'true');
-    }
   }, []);
 
   const getDeathDate = useCallback((): Date | null => {
@@ -115,19 +110,18 @@ const App: React.FC = () => {
     }
   }, [birthDate, lifespan]);
 
-  const getWeeksData = useCallback(() => {
+  const getMonthsData = useCallback(() => {
     if (!birthDate) return [];
     const birth = new Date(birthDate);
     const death = getDeathDate();
     if (!death) return [];
     
-    const totalDays = differenceInDays(death, birth);
-    const totalWeeks = Math.ceil(totalDays / 7);
-    const now = Date.now();
-    const weeksPassed = Math.floor(differenceInDays(now, birth.getTime()) / 7);
+    const totalMonths = differenceInMonths(death, birth);
+    const now = new Date();
+    const monthsPassed = differenceInMonths(now, birth);
     
-    return Array.from({ length: totalWeeks }, (_, i) => ({
-      isPast: i < weeksPassed
+    return Array.from({ length: totalMonths }, (_, i) => ({
+      isPast: i < monthsPassed
     }));
   }, [birthDate, getDeathDate]);
 
@@ -205,37 +199,26 @@ const App: React.FC = () => {
       if (typeof window === 'undefined') return;
       
       const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const weeks = getWeeksData();
-      if (weeks.length === 0) return;
+      const months = getMonthsData();
+      if (months.length === 0) return;
       
-      // Account for UI elements (buttons, quotes)
-      const availableHeight = vh - 180; // Leave space for buttons and quotes
-      const availableWidth = vw - 32; // Account for padding
-      
-      // Try different column counts to find best fit
-      let bestCols = 52;
-      for (let cols = 15; cols <= 52; cols++) {
-        const rows = Math.ceil(weeks.length / cols);
-        const cellWidth = availableWidth / cols;
-        const cellHeight = availableHeight / rows;
-        const cellSize = Math.min(cellWidth, cellHeight);
-        
-        // If cells would be at least 4px and everything fits
-        if (cellSize >= 4 && rows * cellSize <= availableHeight) {
-          bestCols = cols;
-          break;
-        }
+      // For months, use 12 columns (1 year per row) on desktop
+      // Scale down on mobile
+      let cols = 12;
+      if (vw < 640) {
+        cols = 6; // 6 months per row on mobile
+      } else if (vw < 1024) {
+        cols = 12; // Full year on tablet
       }
     
-      setCalendarCols(bestCols);
+      setCalendarCols(cols);
     };
   
     calculateColumns();
   
     window.addEventListener('resize', calculateColumns);
     return () => window.removeEventListener('resize', calculateColumns);
-  }, [birthDate, lifespan, getWeeksData]);
+  }, [birthDate, lifespan, getMonthsData]);
 
   const playTick = () => {
     try {
@@ -425,7 +408,7 @@ const App: React.FC = () => {
     );
   }
 
-  const weeks = getWeeksData();
+  const months = getMonthsData();
 
   return (
     <div 
@@ -463,13 +446,13 @@ const App: React.FC = () => {
             </button>
             
             <button
-  onClick={handleShareNative}
-  className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-  aria-label="Share"
-  title="Share"
->
-  <Share2 size={20} />
-</button>
+              onClick={handleShareNative}
+              className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+              aria-label="Share"
+              title="Share"
+            >
+              <Share2 size={20} />
+            </button>
           </div>
         </>
       )}
@@ -501,19 +484,6 @@ const App: React.FC = () => {
                   onChange={(e) => {
                     setShowPercent(e.target.checked);
                     saveSetting('showPercent', e.target.checked);
-                  }}
-                  className="w-5 h-5"
-                />
-              </label>
-              
-              <label className="flex items-center justify-between p-3 bg-gray-900 rounded hover:bg-gray-800 cursor-pointer">
-                <span>Show Seconds</span>
-                <input
-                  type="checkbox"
-                  checked={showSeconds}
-                  onChange={(e) => {
-                    setShowSeconds(e.target.checked);
-                    saveSetting('showSeconds', e.target.checked);
                   }}
                   className="w-5 h-5"
                 />
@@ -635,10 +605,9 @@ const App: React.FC = () => {
               role="timer"
               aria-live="polite"
               aria-atomic="true"
-              aria-label={`${countdown.days} days, ${countdown.hours} hours, ${countdown.minutes} minutes${showSeconds ? `, ${countdown.seconds} seconds` : ''} remaining`}
+              aria-label={`${countdown.days} days, ${countdown.hours} hours, ${countdown.minutes} minutes, ${countdown.seconds} seconds remaining`}
             >
-              {countdown.days}:{String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}
-              {showSeconds && `:${String(countdown.seconds).padStart(2, '0')}`}
+              {countdown.days}:{String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}
             </div>
             
             {showPercent && (
@@ -669,28 +638,28 @@ const App: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center p-4">
+          <div className="w-full h-full flex items-center justify-center p-2">
             <div
-              className="grid gap-0.5"
+              className="grid gap-1 md:gap-2"
               style={{
                 gridTemplateColumns: `repeat(${calendarCols}, 1fr)`,
                 width: 'fit-content',
-                maxWidth: '100%',
-                maxHeight: 'calc(100vh - 180px)'
+                maxWidth: '95%',
+                maxHeight: 'calc(100vh - 200px)'
               }}
               role="img"
-              aria-label={`Life calendar showing ${weeks.filter(w => w.isPast).length} weeks lived out of ${weeks.length} total weeks`}
+              aria-label={`Life calendar showing ${months.filter(m => m.isPast).length} months lived out of ${months.length} total months`}
             >
-              {weeks.map((week, i) => (
+              {months.map((month, i) => (
                 <div
                   key={i}
                   className="rounded-full"
                   style={{
                     aspectRatio: '1/1',
-                    width: 'clamp(4px, 1.5vw, 12px)',
-                    height: 'clamp(4px, 1.5vw, 12px)',
-                    backgroundColor: week.isPast ? accentColor : 'transparent',
-                    border: week.isPast ? 'none' : `1px solid ${accentColor}`
+                    width: 'clamp(8px, 3vw, 20px)',
+                    height: 'clamp(8px, 3vw, 20px)',
+                    backgroundColor: month.isPast ? accentColor : 'transparent',
+                    border: month.isPast ? 'none' : `1px solid ${accentColor}`
                   }}
                   aria-hidden="true"
                 />
