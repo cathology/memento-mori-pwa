@@ -17,32 +17,35 @@ body {
   overflow: hidden;
 }
 
-/* ===== Life Calendar Layout ===== */
-
-.life-calendar-wrapper {
-  height: calc(100vh - 240px); /* space for controls + quote */
+.calendar-container {
   width: 100%;
+  height: calc(100vh - 200px);
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 20px;
+  padding-bottom: 100px;
 }
 
-.life-calendar-grid {
-  flex: 1;
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8px, 1fr));
+  gap: 3px;
   width: 100%;
   max-width: 1400px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6px, 1fr));
-  gap: 4px;
-  align-content: start;
+  height: 100%;
+  align-content: center;
+  justify-content: center;
 }
 
-.life-calendar-cell {
+.calendar-cell {
   aspect-ratio: 1 / 1;
-  border-radius: 9999px;
+  border-radius: 50%;
+  width: 100%;
+  max-width: 20px;
+  max-height: 20px;
 }
-
-/* Accessibility */
 
 @media (prefers-reduced-motion: reduce) {
   * {
