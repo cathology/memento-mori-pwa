@@ -49,7 +49,6 @@ const App: React.FC = () => {
   const [accentColor, setAccentColor] = useState('#ef4444');
   const [capturing, setCapturing] = useState(false);
   const [newQuote, setNewQuote] = useState('');
-  const [calendarCols, setCalendarCols] = useState(12);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -193,43 +192,6 @@ const App: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
-
-  useEffect(() => {
-    const calculateColumns = () => {
-      if (typeof window === 'undefined') return;
-      
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const months = getMonthsData();
-      if (months.length === 0) return;
-      
-      const availableHeight = vh - 240; // Space for buttons, quote, padding
-      const availableWidth = vw - 40; // Side padding
-      
-      // Try different column counts to find best fit
-      let bestCols = 12;
-      for (let cols = 6; cols <= 24; cols++) {
-        const rows = Math.ceil(months.length / cols);
-        const cellSize = Math.min(
-          availableWidth / cols,
-          availableHeight / rows
-        ) - 4; // Account for gap
-        
-        // If everything fits and cells are visible (min 6px)
-        if (cellSize >= 6 && rows * (cellSize + 4) <= availableHeight) {
-          bestCols = cols;
-          break;
-        }
-      }
-    
-      setCalendarCols(bestCols);
-    };
-  
-    calculateColumns();
-  
-    window.addEventListener('resize', calculateColumns);
-    return () => window.removeEventListener('resize', calculateColumns);
-  }, [birthDate, lifespan, getMonthsData]);
 
   const playTick = () => {
     try {
@@ -398,7 +360,7 @@ const App: React.FC = () => {
                 ))}
               </select>
             </div>
-            <a
+            
               href="https://media.nmfn.com/tnetwork/lifespan/index.html#0"
               target="_blank"
               rel="noopener noreferrer"
@@ -456,14 +418,16 @@ const App: React.FC = () => {
               <Download size={20} />
             </button>
             
-            <button
-              onClick={handleShareNative}
-              className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-              aria-label="Share"
-              title="Share"
-            >
-              <Share2 size={20} />
-            </button>
+            {navigator.share && (
+              <button
+                onClick={handleShareNative}
+                className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+                aria-label="Share"
+                title="Share"
+              >
+                <Share2 size={20} />
+              </button>
+            )}
           </div>
         </>
       )}
@@ -649,35 +613,26 @@ const App: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="w-full flex items-center justify-center" style={{ height: 'calc(100vh - 240px)' }}>
+          <div className="calendar-container">
+            <h2 
+              className="text-xl md:text-2xl font-medium mb-6 text-center" 
+              style={{ color: accentColor }}
+            >
+              Every circle is a month of your life
+            </h2>
             <div
-              className="grid"
-              style={{
-                gridTemplateColumns: `repeat(${calendarCols}, 1fr)`,
-                gap: '4px',
-                width: 'auto',
-                height: 'auto',
-                maxWidth: 'calc(100vw - 40px)',
-                maxHeight: 'calc(100vh - 240px)'
-              }}
+              className="calendar-grid"
               role="img"
               aria-label={`Life calendar showing ${months.filter(m => m.isPast).length} months lived out of ${months.length} total months`}
             >
               {months.map((month, i) => (
                 <div
                   key={i}
-                  className="rounded-full"
+                  className="calendar-cell"
                   style={{
-                    width: `calc((100vw - 40px) / ${calendarCols} - 4px)`,
-                    height: `calc((100vw - 40px) / ${calendarCols} - 4px)`,
-                    maxWidth: '16px',
-                    maxHeight: '16px',
-                    minWidth: '6px',
-                    minHeight: '6px',
                     backgroundColor: month.isPast ? accentColor : 'transparent',
                     border: month.isPast ? 'none' : `1px solid ${accentColor}`
                   }}
-                  aria-hidden="true"
                 />
               ))}
             </div>
