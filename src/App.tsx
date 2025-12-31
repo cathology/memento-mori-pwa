@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Share2, Menu, X, Calendar, Clock, Plus, Trash2 } from 'lucide-react';
+import { Share2, Menu, X, Calendar, Clock, Plus, Trash2, Download } from 'lucide-react';
 import { addYears, differenceInDays } from 'date-fns';
 import { toPng } from 'html-to-image';
 
@@ -39,10 +39,12 @@ const App: React.FC = () => {
   const [accentColor, setAccentColor] = useState('#ef4444');
   const [capturing, setCapturing] = useState(false);
   const [newQuote, setNewQuote] = useState('');
-  
+  const [calendarCols, setCalendarCols] = useState(52);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
+  // Load settings from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('memento.birth');
     const savedLifespan = localStorage.getItem('memento.lifespan');
@@ -52,57 +54,37 @@ const App: React.FC = () => {
     const savedShowQuotes = localStorage.getItem('memento.showQuotes');
     const savedShowPercent = localStorage.getItem('memento.showPercent');
     const savedShowSeconds = localStorage.getItem('memento.showSeconds');
-    
+
     if (saved && savedLifespan) {
       setBirthDate(saved);
       setLifespan(parseInt(savedLifespan));
       setIsSetup(true);
     }
+
     if (savedQuotes) {
-      try {
-        setQuotes(JSON.parse(savedQuotes));
-      } catch (e) {
-        console.error('Error loading quotes:', e);
-      }
+      try { setQuotes(JSON.parse(savedQuotes)); } catch {}
     }
     if (savedSelected) {
-      try {
-        setSelectedQuotes(new Set(JSON.parse(savedSelected)));
-      } catch (e) {
-        console.error('Error loading selected quotes:', e);
-      }
+      try { setSelectedQuotes(new Set(JSON.parse(savedSelected))); } catch {}
     }
-    if (savedAccent) {
-      setAccentColor(savedAccent);
-    }
-    if (savedShowQuotes !== null) {
-      setShowQuotes(savedShowQuotes === 'true');
-    }
-    if (savedShowPercent !== null) {
-      setShowPercent(savedShowPercent === 'true');
-    }
-    if (savedShowSeconds !== null) {
-      setShowSeconds(savedShowSeconds === 'true');
-    }
+    if (savedAccent) setAccentColor(savedAccent);
+    if (savedShowQuotes !== null) setShowQuotes(savedShowQuotes === 'true');
+    if (savedShowPercent !== null) setShowPercent(savedShowPercent === 'true');
+    if (savedShowSeconds !== null) setShowSeconds(savedShowSeconds === 'true');
   }, []);
 
+  // Compute death date
   const getDeathDate = useCallback((): Date | null => {
     if (!birthDate) return null;
     const birth = new Date(birthDate);
-    try {
-      let death = addYears(birth, lifespan);
-      
-      if (death.getMonth() !== birth.getMonth()) {
-        death = new Date(death.getFullYear(), birth.getMonth(), 0);
-      }
-      
-      return death;
-    } catch (error) {
-      console.error('Error calculating death date:', error);
-      return null;
+    let death = addYears(birth, lifespan);
+    if (death.getMonth() !== birth.getMonth()) {
+      death = new Date(death.getFullYear(), birth.getMonth(), 0);
     }
+    return death;
   }, [birthDate, lifespan]);
 
+  // Countdown effect
   useEffect(() => {
     if (!isSetup) return;
 
@@ -112,8 +94,7 @@ const App: React.FC = () => {
 
       const now = Date.now();
       const birth = new Date(birthDate).getTime();
-      const deathMs = death.getTime();
-      const remainingMs = Math.max(0, deathMs - now);
+      const remainingMs = Math.max(0, death.getTime() - now);
 
       const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
       const hours = Math.floor((remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -122,27 +103,28 @@ const App: React.FC = () => {
 
       setCountdown({ days, hours, minutes, seconds });
 
-      const pct = Math.min(100, Math.max(0, ((now - birth) / (deathMs - birth)) * 100));
+      const pct = Math.min(100, Math.max(0, ((now - birth) / (death.getTime() - birth)) * 100));
       setPercent(pct);
 
-      if (tickSound && !document.hidden) {
-        playTick();
-      }
+      if (tickSound && !document.hidden) playTick();
     };
 
-    updateCountdown();
-    
     const now = Date.now();
     const delay = 1000 - (now % 1000);
+    let interval: NodeJS.Timeout;
+
     const timeout = setTimeout(() => {
       updateCountdown();
-      const interval = setInterval(updateCountdown, 1000);
-      return () => clearInterval(interval);
+      interval = setInterval(updateCountdown, 1000);
     }, delay);
-    
-    return () => clearTimeout(timeout);
+
+    return () => {
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
   }, [isSetup, birthDate, lifespan, tickSound, getDeathDate]);
 
+  // Quote rotation
   useEffect(() => {
     if (!showQuotes) return;
     const activeQuotes = Array.from(selectedQuotes);
@@ -159,19 +141,33 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [showQuotes, selectedQuotes]);
 
+  // Handle visibility
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && audioContextRef.current) {
-        audioContextRef.current.suspend();
-      } else if (audioContextRef.current) {
-        audioContextRef.current.resume();
-      }
+      if (document.hidden && audioContextRef.current) audioContextRef.current.suspend();
+      else if (audioContextRef.current) audioContextRef.current.resume();
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
+  // Responsive calendar columns
+  useEffect(() => {
+    const calculateColumns = () => {
+      if (!birthDate) return;
+      const vw = window.innerWidth;
+      let cols = 52;
+      if (vw < 640) cols = Math.max(15, Math.min(25, Math.floor(vw / 20)));
+      else if (vw < 1024) cols = Math.max(30, Math.min(40, Math.floor(vw / 22)));
+      else cols = Math.min(52, Math.floor(vw / 24));
+      setCalendarCols(cols);
+    };
+    calculateColumns();
+    window.addEventListener('resize', calculateColumns);
+    return () => window.removeEventListener('resize', calculateColumns);
+  }, [birthDate, lifespan]);
+
+  // Play tick sound
   const playTick = () => {
     try {
       if (!audioContextRef.current) {
@@ -180,29 +176,25 @@ const App: React.FC = () => {
       const ctx = audioContextRef.current;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      
       osc.connect(gain);
       gain.connect(ctx.destination);
-      
       osc.frequency.value = 880;
       gain.gain.setValueAtTime(0.1, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
-      
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.05);
-    } catch (error) {
-      console.error('Error playing tick:', error);
-    }
+    } catch {}
   };
 
+  // Handle setup
   const handleSetup = () => {
     if (!birthDate) return;
-    
     localStorage.setItem('memento.birth', birthDate);
     localStorage.setItem('memento.lifespan', lifespan.toString());
     setIsSetup(true);
   };
 
+  // Switch modes
   const switchMode = () => {
     setFlipping(true);
     setTimeout(() => {
@@ -211,62 +203,55 @@ const App: React.FC = () => {
     }, 300);
   };
 
-  const handleShare = async () => {
+  // Download image
+  const handleDownload = async () => {
     if (!containerRef.current) return;
-    
     setCapturing(true);
     setMenuOpen(false);
-    
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
+    await new Promise(r => setTimeout(r, 100));
     try {
-      const dataUrl = await toPng(containerRef.current, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: '#000000',
-      });
-      
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], 'memento-mori.png', { type: 'image/png' });
-      
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Memento Mori',
-          text: 'Remember that you must die',
-        });
-      } else {
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = 'memento-mori.png';
-        a.click();
-      }
-    } catch (err) {
-      console.error('Share failed:', err);
-    } finally {
-      setCapturing(false);
-    }
+      const dataUrl = await toPng(containerRef.current, { cacheBust: true, pixelRatio: 2, backgroundColor: '#000000' });
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `memento-mori-${new Date().toISOString().split('T')[0]}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch { alert('Failed to create image.'); }
+    setCapturing(false);
   };
 
+  // Share natively
+  const handleShareNative = async () => {
+    if (!containerRef.current || !navigator.share) return;
+    setCapturing(true);
+    setMenuOpen(false);
+    await new Promise(r => setTimeout(r, 100));
+    try {
+      const dataUrl = await toPng(containerRef.current, { cacheBust: true, pixelRatio: 2, backgroundColor: '#000000' });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'memento-mori.png', { type: 'image/png' });
+      await navigator.share({ files: [file], title: 'Memento Mori', text: 'Remember that you must die' });
+    } catch {}
+    setCapturing(false);
+  };
+
+  // Generate weeks
   const getWeeksData = () => {
     if (!birthDate) return [];
     const birth = new Date(birthDate);
     const death = getDeathDate();
     if (!death) return [];
-    
-    const totalDays = differenceInDays(death, birth);
-    const totalWeeks = Math.ceil(totalDays / 7);
-    const now = Date.now();
-    const weeksPassed = Math.floor(differenceInDays(now, birth.getTime()) / 7);
-    
-    return Array.from({ length: totalWeeks }, (_, i) => ({
-      isPast: i < weeksPassed
-    }));
+    const totalWeeks = Math.ceil(differenceInDays(death, birth) / 7);
+    const weeksPassed = Math.floor(differenceInDays(new Date(), birth) / 7);
+    return Array.from({ length: totalWeeks }, (_, i) => ({ isPast: i < weeksPassed }));
   };
 
+  const weeks = getWeeksData();
+
+  // Quote handlers
   const addCustomQuote = () => {
     if (!newQuote.trim()) return;
-    
     const updated = [...quotes, newQuote];
     setQuotes(updated);
     setSelectedQuotes(new Set([...selectedQuotes, updated.length - 1]));
@@ -276,31 +261,21 @@ const App: React.FC = () => {
 
   const toggleQuote = (index: number) => {
     const updated = new Set(selectedQuotes);
-    if (updated.has(index)) {
-      updated.delete(index);
-    } else {
-      updated.add(index);
-    }
+    updated.has(index) ? updated.delete(index) : updated.add(index);
     setSelectedQuotes(updated);
     localStorage.setItem('memento.selectedQuotes', JSON.stringify(Array.from(updated)));
   };
 
   const deleteQuote = (index: number) => {
     const updated = quotes.filter((_, i) => i !== index);
+    const newSelected = new Set(Array.from(selectedQuotes).filter(i => i !== index).map(i => i > index ? i - 1 : i));
     setQuotes(updated);
-    const newSelected = new Set(
-      Array.from(selectedQuotes)
-        .filter(i => i !== index)
-        .map(i => i > index ? i - 1 : i)
-    );
     setSelectedQuotes(newSelected);
     localStorage.setItem('memento.quotes', JSON.stringify(updated));
     localStorage.setItem('memento.selectedQuotes', JSON.stringify(Array.from(newSelected)));
   };
 
-  const saveSetting = (key: string, value: any) => {
-    localStorage.setItem(`memento.${key}`, value.toString());
-  };
+  const saveSetting = (key: string, value: any) => localStorage.setItem(`memento.${key}`, value.toString());
 
   if (!isSetup) {
     return (
@@ -315,7 +290,6 @@ const App: React.FC = () => {
                 value={birthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-600"
-                aria-label="Birth date"
               />
             </div>
             <div>
@@ -324,19 +298,16 @@ const App: React.FC = () => {
                 value={lifespan}
                 onChange={(e) => setLifespan(parseInt(e.target.value))}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-600"
-                aria-label="Expected lifespan"
               >
-                {Array.from({ length: 101 }, (_, i) => i + 20).map(y => (
-                  <option key={y} value={y}>{y} years</option>
-                ))}
+                {Array.from({ length: 101 }, (_, i) => i + 20).map(y => <option key={y} value={y}>{y} years</option>)}
               </select>
             </div>
-            
+            <a
               href="https://media.nmfn.com/tnetwork/lifespan/index.html#0"
               target="_blank"
               rel="noopener noreferrer"
               className="block text-center text-blue-400 hover:underline text-sm py-2"
-            <a>
+            >
               Calculate my lifespan (external site)
             </a>
             <button
@@ -352,277 +323,54 @@ const App: React.FC = () => {
     );
   }
 
-  const weeks = getWeeksData();
-  const cols = Math.min(52, Math.floor((typeof window !== 'undefined' ? window.innerWidth : 1200) / 14));
-
   return (
-    <div 
-      ref={containerRef} 
-      className="min-h-screen bg-black text-white overflow-hidden relative"
-      data-capturing={capturing}
-    >
+    <div ref={containerRef} className="min-h-screen bg-black text-white overflow-hidden relative" data-capturing={capturing}>
+      {/* Menu, Switch, Download/Share buttons */}
       {!capturing && (
         <>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="fixed top-4 left-4 z-50 p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-            aria-label="Toggle menu"
-            aria-expanded={menuOpen}
-          >
+          <button onClick={() => setMenuOpen(!menuOpen)} className="fixed top-4 left-4 z-50 p-2 bg-gray-900 rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-white">
             {menuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
-          
-          <button
-            onClick={switchMode}
-            className="fixed bottom-4 right-4 z-50 p-3 bg-gray-900 rounded-full hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-            aria-label={`Switch to ${mode === 'countdown' ? 'calendar' : 'countdown'} mode`}
-          >
+          <button onClick={switchMode} className="fixed bottom-4 right-4 z-50 p-3 bg-gray-900 rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-white">
             {mode === 'countdown' ? <Calendar size={24} /> : <Clock size={24} />}
           </button>
-
-          <button
-            onClick={handleShare}
-            className="fixed top-4 right-4 z-50 p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-            aria-label="Share or download image"
-          >
-            <Share2 size={24} />
-          </button>
+          <div className="fixed top-4 right-4 z-50 flex gap-2">
+            <button onClick={handleDownload} className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-white">
+              <Download size={20} />
+            </button>
+            {navigator.share && <button onClick={handleShareNative} className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-white"><Share2 size={20} /></button>}
+          </div>
         </>
       )}
 
-      {menuOpen && !capturing && (
-        <div className="fixed inset-0 bg-black bg-opacity-95 z-40 p-4 md:p-8 overflow-y-auto">
-          <div className="max-w-md mx-auto space-y-6 pt-16">
-            <h2 className="text-2xl font-bold mb-6">Settings</h2>
-            
-            <div className="space-y-4">
-              <label className="flex items-center justify-between p-3 bg-gray-900 rounded hover:bg-gray-800 cursor-pointer">
-                <span>Show Quotes</span>
-                <input
-                  type="checkbox"
-                  checked={showQuotes}
-                  onChange={(e) => {
-                    setShowQuotes(e.target.checked);
-                    saveSetting('showQuotes', e.target.checked);
-                  }}
-                  className="w-5 h-5"
-                />
-              </label>
-              
-              <label className="flex items-center justify-between p-3 bg-gray-900 rounded hover:bg-gray-800 cursor-pointer">
-                <span>Show Percentage</span>
-                <input
-                  type="checkbox"
-                  checked={showPercent}
-                  onChange={(e) => {
-                    setShowPercent(e.target.checked);
-                    saveSetting('showPercent', e.target.checked);
-                  }}
-                  className="w-5 h-5"
-                />
-              </label>
-              
-              <label className="flex items-center justify-between p-3 bg-gray-900 rounded hover:bg-gray-800 cursor-pointer">
-                <span>Show Seconds</span>
-                <input
-                  type="checkbox"
-                  checked={showSeconds}
-                  onChange={(e) => {
-                    setShowSeconds(e.target.checked);
-                    saveSetting('showSeconds', e.target.checked);
-                  }}
-                  className="w-5 h-5"
-                />
-              </label>
-              
-              <label className="flex items-center justify-between p-3 bg-gray-900 rounded hover:bg-gray-800 cursor-pointer">
-                <span>Ticking Sound</span>
-                <input
-                  type="checkbox"
-                  checked={tickSound}
-                  onChange={(e) => setTickSound(e.target.checked)}
-                  className="w-5 h-5"
-                />
-              </label>
-            </div>
-            
-            <div className="pt-4">
-              <label className="block mb-3 font-medium">Accent Color</label>
-              <div className="flex flex-wrap gap-3">
-                {[
-                  { color: '#ef4444', name: 'Red' },
-                  { color: '#f59e0b', name: 'Amber' },
-                  { color: '#10b981', name: 'Green' },
-                  { color: '#3b82f6', name: 'Blue' },
-                  { color: '#8b5cf6', name: 'Purple' },
-                  { color: '#ec4899', name: 'Pink' }
-                ].map(({ color, name }) => (
-                  <button
-                    key={color}
-                    onClick={() => {
-                      setAccentColor(color);
-                      saveSetting('accentColor', color);
-                    }}
-                    className="w-12 h-12 rounded-full border-4 transition-all focus:outline-none focus:ring-2 focus:ring-white"
-                    style={{ 
-                      backgroundColor: color,
-                      borderColor: accentColor === color ? '#fff' : color,
-                      transform: accentColor === color ? 'scale(1.1)' : 'scale(1)'
-                    }}
-                    aria-label={`Select ${name} color`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <h3 className="font-medium mb-3">Manage Quotes</h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {quotes.map((quote, index) => (
-                  <div key={index} className="flex items-start gap-2 p-2 bg-gray-900 rounded">
-                    <input
-                      type="checkbox"
-                      checked={selectedQuotes.has(index)}
-                      onChange={() => toggleQuote(index)}
-                      className="mt-1 flex-shrink-0"
-                    />
-                    <span className="flex-1 text-sm">{quote}</span>
-                    {index >= DEFAULT_QUOTES.length && (
-                      <button
-                        onClick={() => deleteQuote(index)}
-                        className="text-red-400 hover:text-red-300 flex-shrink-0"
-                        aria-label="Delete quote"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              <div className="mt-4 flex gap-2">
-                <input
-                  type="text"
-                  value={newQuote}
-                  onChange={(e) => setNewQuote(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addCustomQuote()}
-                  placeholder="Add custom quote..."
-                  className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-600"
-                />
-                <button
-                  onClick={addCustomQuote}
-                  className="p-2 bg-red-600 hover:bg-red-700 rounded transition-colors"
-                  aria-label="Add quote"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => {
-                if (confirm('Clear all data and reset the app?')) {
-                  localStorage.clear();
-                  window.location.reload();
-                }
-              }}
-              className="w-full bg-red-600 hover:bg-red-700 py-3 rounded font-medium transition-colors mt-6"
-            >
-              Clear All Data & Reset
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div 
-        className={`min-h-screen flex flex-col items-center justify-center p-4 transition-all duration-300 ${
-          flipping ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
-        }`}
-      >
+      {/* Main content */}
+      <div className={`min-h-screen flex flex-col items-center justify-center p-4 transition-all duration-300 ${flipping ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
         {mode === 'countdown' ? (
           <div className="text-center w-full">
-            <div
-              className="font-mono font-bold mb-8 tabular-nums"
-              style={{ 
-                color: accentColor,
-                fontSize: 'clamp(2rem, 12vw, 8rem)',
-                lineHeight: 1.2
-              }}
-              role="timer"
-              aria-live="polite"
-              aria-atomic="true"
-              aria-label={`${countdown.days} days, ${countdown.hours} hours, ${countdown.minutes} minutes${showSeconds ? `, ${countdown.seconds} seconds` : ''} remaining`}
-            >
-              {countdown.days}:{String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}
-              {showSeconds && `:${String(countdown.seconds).padStart(2, '0')}`}
+            <div className="font-mono font-bold mb-8 tabular-nums" style={{ color: accentColor, fontSize: 'clamp(2rem, 12vw, 8rem)', lineHeight: 1.2 }} role="timer" aria-live="polite" aria-atomic="true">
+              {countdown.days}:{String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}{showSeconds && `:${String(countdown.seconds).padStart(2, '0')}`}
             </div>
-            
             {showPercent && (
               <div className="max-w-2xl mx-auto mb-8 px-4">
-                <div 
-                  className="h-3 md:h-4 bg-gray-800 rounded-full overflow-hidden"
-                  role="progressbar"
-                  aria-valuenow={percent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label="Life progress"
-                >
-                  <div
-                    className="h-full transition-all duration-1000 ease-linear"
-                    style={{ 
-                      width: `${percent}%`,
-                      backgroundColor: accentColor
-                    }}
-                  />
+                <div className="h-3 md:h-4 bg-gray-800 rounded-full overflow-hidden" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+                  <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${percent}%`, backgroundColor: accentColor }} />
                 </div>
-                <div 
-                  className="text-lg md:text-2xl mt-3 font-medium"
-                  style={{ color: accentColor }}
-                >
-                  {percent.toFixed(2)}% of your life is over
-                </div>
+                <div className="text-lg md:text-2xl mt-3 font-medium" style={{ color: accentColor }}>{percent.toFixed(2)}% of your life is over</div>
               </div>
             )}
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center p-2">
-            <div
-              className="grid gap-1"
-              style={{
-                gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                maxWidth: '100%',
-                maxHeight: '80vh'
-              }}
-              role="img"
-              aria-label={`Life calendar showing ${weeks.filter(w => w.isPast).length} weeks lived out of ${weeks.length} total weeks`}
-            >
+          <div className="w-full flex items-center justify-center p-4 overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
+            <div className="grid gap-0.5 md:gap-1" style={{ gridTemplateColumns: `repeat(${calendarCols}, minmax(0, 1fr))`, width: '100%', maxWidth: '100%' }} role="img" aria-label={`Life calendar showing ${weeks.filter(w => w.isPast).length} weeks lived out of ${weeks.length} total weeks`}>
               {weeks.map((week, i) => (
-                <div
-                  key={i}
-                  className="rounded-full"
-                  style={{
-                    width: 'clamp(4px, 1.2vw, 14px)',
-                    height: 'clamp(4px, 1.2vw, 14px)',
-                    backgroundColor: week.isPast ? accentColor : 'transparent',
-                    border: week.isPast ? 'none' : `1px solid ${accentColor}`
-                  }}
-                  aria-hidden="true"
-                />
+                <div key={i} className={`aspect-square rounded-sm ${week.isPast ? 'bg-red-600' : 'bg-gray-900'} transition-colors`} />
               ))}
             </div>
           </div>
         )}
-
-        {showQuotes && !capturing && Array.from(selectedQuotes).length > 0 && (
-          <div 
-            className="fixed bottom-16 md:bottom-20 left-0 right-0 text-center px-4"
-            role="region"
-            aria-live="polite"
-            aria-label="Rotating quote"
-          >
-            <p className="text-sm md:text-base text-gray-300 italic max-w-2xl mx-auto leading-relaxed">
-              "{quotes[currentQuoteIndex]}"
-            </p>
+        {showQuotes && quotes.length > 0 && (
+          <div className="mt-8 text-center max-w-3xl px-4 text-gray-300 italic text-sm md:text-lg">
+            "{quotes[currentQuoteIndex]}"
           </div>
         )}
       </div>
