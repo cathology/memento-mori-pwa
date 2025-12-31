@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Share2, Menu, X, Calendar, Clock, Plus, Trash2 } from 'lucide-react';
 import { addYears, differenceInDays } from 'date-fns';
 import { toPng } from 'html-to-image';
-import { Share2, Menu, X, Calendar, Clock, Plus, Trash2, Download } from 'lucide-react';
-
 
 const DEFAULT_QUOTES = [
   "Remember, man, that thou art dust, and to dust thou shalt return.",
@@ -213,66 +211,42 @@ const App: React.FC = () => {
     }, 300);
   };
 
-const handleDownload = async () => {
-  if (!containerRef.current) return;
-  
-  setCapturing(true);
-  setMenuOpen(false);
-  
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  try {
-    const dataUrl = await toPng(containerRef.current, {
-      cacheBust: true,
-      pixelRatio: 2,
-      backgroundColor: '#000000',
-    });
+  const handleShare = async () => {
+    if (!containerRef.current) return;
     
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = `memento-mori-${new Date().toISOString().split('T')[0]}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } catch (error) {
-    console.error('Download failed:', error);
-    alert('Failed to create image. Please try again.');
-  } finally {
-    setCapturing(false);
-  }
-};
-
-const handleShareNative = async () => {
-  if (!containerRef.current) return;
-  
-  setCapturing(true);
-  setMenuOpen(false);
-  
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  try {
-    const dataUrl = await toPng(containerRef.current, {
-      cacheBust: true,
-      pixelRatio: 2,
-      backgroundColor: '#000000',
-    });
+    setCapturing(true);
+    setMenuOpen(false);
     
-    const blob = await (await fetch(dataUrl)).blob();
-    const file = new File([blob], 'memento-mori.png', { type: 'image/png' });
+    await new Promise(resolve => setTimeout(resolve, 200));
     
-    await navigator.share({
-      files: [file],
-      title: 'Memento Mori',
-      text: 'Remember that you must die',
-    });
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      console.error('Share failed:', error);
+    try {
+      const dataUrl = await toPng(containerRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#000000',
+      });
+      
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'memento-mori.png', { type: 'image/png' });
+      
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Memento Mori',
+          text: 'Remember that you must die',
+        });
+      } else {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'memento-mori.png';
+        a.click();
+      }
+    } catch (err) {
+      console.error('Share failed:', err);
+    } finally {
+      setCapturing(false);
     }
-  } finally {
-    setCapturing(false);
-  }
-};
+  };
 
   const getWeeksData = () => {
     if (!birthDate) return [];
@@ -387,49 +361,34 @@ const handleShareNative = async () => {
       className="min-h-screen bg-black text-white overflow-hidden relative"
       data-capturing={capturing}
     >
-{!capturing && (
-  <>
-    <button
-      onClick={() => setMenuOpen(!menuOpen)}
-      className="fixed top-4 left-4 z-50 p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-      aria-label="Toggle menu"
-      aria-expanded={menuOpen}
-    >
-      {menuOpen ? <X size={24} /> : <Menu size={24} />}
-    </button>
-    
-    <button
-      onClick={switchMode}
-      className="fixed bottom-4 right-4 z-50 p-3 bg-gray-900 rounded-full hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-      aria-label={`Switch to ${mode === 'countdown' ? 'calendar' : 'countdown'} mode`}
-    >
-      {mode === 'countdown' ? <Calendar size={24} /> : <Clock size={24} />}
-    </button>
+      {!capturing && (
+        <>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="fixed top-4 left-4 z-50 p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+            aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+          >
+            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          
+          <button
+            onClick={switchMode}
+            className="fixed bottom-4 right-4 z-50 p-3 bg-gray-900 rounded-full hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+            aria-label={`Switch to ${mode === 'countdown' ? 'calendar' : 'countdown'} mode`}
+          >
+            {mode === 'countdown' ? <Calendar size={24} /> : <Clock size={24} />}
+          </button>
 
-    {/* NEW: Download and Share buttons together */}
-    <div className="fixed top-4 right-4 z-50 flex gap-2">
-      <button
-        onClick={handleDownload}
-        className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-        aria-label="Download image"
-        title="Download image"
-      >
-        <Download size={20} />
-      </button>
-      
-      {navigator.share && (
-        <button
-          onClick={handleShareNative}
-          className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-          aria-label="Share"
-          title="Share"
-        >
-          <Share2 size={20} />
-        </button>
+          <button
+            onClick={handleShare}
+            className="fixed top-4 right-4 z-50 p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+            aria-label="Share or download image"
+          >
+            <Share2 size={24} />
+          </button>
+        </>
       )}
-    </div>
-  </>
-)}
 
       {menuOpen && !capturing && (
         <div className="fixed inset-0 bg-black bg-opacity-95 z-40 p-4 md:p-8 overflow-y-auto">
