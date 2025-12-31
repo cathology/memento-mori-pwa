@@ -199,19 +199,30 @@ const App: React.FC = () => {
       if (typeof window === 'undefined') return;
       
       const vw = window.innerWidth;
+      const vh = window.innerHeight;
       const months = getMonthsData();
       if (months.length === 0) return;
       
-      // For months, use 12 columns (1 year per row) on desktop
-      // Scale down on mobile
-      let cols = 12;
-      if (vw < 640) {
-        cols = 6; // 6 months per row on mobile
-      } else if (vw < 1024) {
-        cols = 12; // Full year on tablet
+      const availableHeight = vh - 240; // Space for buttons, quote, padding
+      const availableWidth = vw - 40; // Side padding
+      
+      // Try different column counts to find best fit
+      let bestCols = 12;
+      for (let cols = 6; cols <= 24; cols++) {
+        const rows = Math.ceil(months.length / cols);
+        const cellSize = Math.min(
+          availableWidth / cols,
+          availableHeight / rows
+        ) - 4; // Account for gap
+        
+        // If everything fits and cells are visible (min 6px)
+        if (cellSize >= 6 && rows * (cellSize + 4) <= availableHeight) {
+          bestCols = cols;
+          break;
+        }
       }
     
-      setCalendarCols(cols);
+      setCalendarCols(bestCols);
     };
   
     calculateColumns();
@@ -638,14 +649,16 @@ const App: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center p-2">
+          <div className="w-full flex items-center justify-center" style={{ height: 'calc(100vh - 240px)' }}>
             <div
-              className="grid gap-1 md:gap-2"
+              className="grid"
               style={{
                 gridTemplateColumns: `repeat(${calendarCols}, 1fr)`,
-                width: 'fit-content',
-                maxWidth: '95%',
-                maxHeight: 'calc(100vh - 200px)'
+                gap: '4px',
+                width: 'auto',
+                height: 'auto',
+                maxWidth: 'calc(100vw - 40px)',
+                maxHeight: 'calc(100vh - 240px)'
               }}
               role="img"
               aria-label={`Life calendar showing ${months.filter(m => m.isPast).length} months lived out of ${months.length} total months`}
@@ -655,9 +668,12 @@ const App: React.FC = () => {
                   key={i}
                   className="rounded-full"
                   style={{
-                    aspectRatio: '1/1',
-                    width: 'clamp(8px, 3vw, 20px)',
-                    height: 'clamp(8px, 3vw, 20px)',
+                    width: `calc((100vw - 40px) / ${calendarCols} - 4px)`,
+                    height: `calc((100vw - 40px) / ${calendarCols} - 4px)`,
+                    maxWidth: '16px',
+                    maxHeight: '16px',
+                    minWidth: '6px',
+                    minHeight: '6px',
                     backgroundColor: month.isPast ? accentColor : 'transparent',
                     border: month.isPast ? 'none' : `1px solid ${accentColor}`
                   }}
