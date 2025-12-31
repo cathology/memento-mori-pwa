@@ -361,6 +361,7 @@ const App: React.FC = () => {
               </select>
             </div>
             
+            <a
               href="https://media.nmfn.com/tnetwork/lifespan/index.html#0"
               target="_blank"
               rel="noopener noreferrer"
