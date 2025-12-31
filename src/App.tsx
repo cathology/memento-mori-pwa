@@ -462,16 +462,14 @@ const App: React.FC = () => {
               <Download size={20} />
             </button>
             
-            {navigator.share && (
-              <button
-                onClick={handleShareNative}
-                className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-                aria-label="Share"
-                title="Share"
-              >
-                <Share2 size={20} />
-              </button>
-            )}
+            <button
+  onClick={handleShareNative}
+  className="p-2 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+  aria-label="Share"
+  title="Share"
+>
+  <Share2 size={20} />
+</button>
           </div>
         </>
       )}
